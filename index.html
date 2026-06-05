@@ -392,34 +392,27 @@
     let currentLookup = null;
     let dbReady = false;
 
-    // ===== Load CSV and build postalDB =====
+    // ===== Load compact JSON and build postalDB =====
     function buildPostalDB() {
       postCodeLookup.className = 'lookup-result info';
       postCodeLookup.innerHTML = '郵便番号データを読み込み中...';
 
-      fetch('utf_ken_all.csv')
+      fetch('postal_data.json')
         .then(function(res) {
-          if (!res.ok) throw new Error('CSV読み込み失敗: ' + res.status);
-          return res.text();
+          if (!res.ok) throw new Error('データ読み込み失敗: ' + res.status);
+          return res.json();
         })
-        .then(function(text) {
-          var lines = text.split(/\r?\n/);
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (!line) continue;
-            // Parse CSV: fields may be quoted
-            var fields = parseCSVLine(line);
-            if (fields.length < 9) continue;
-            var code = fields[2].replace(/"/g, '').trim();
-            var pref = fields[6].replace(/"/g, '').trim();
-            var city = fields[7].replace(/"/g, '').trim();
-            if (!postalDB[code]) {
-              postalDB[code] = { pref: pref, city: city };
-            }
+        .then(function(data) {
+          var prefs = data.p;
+          var cities = data.c;
+          var entries = data.d;
+          for (var i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            postalDB[e[0]] = { pref: prefs[e[1]], city: cities[e[2]] };
           }
           dbReady = true;
           postCodeLookup.className = 'lookup-result ok';
-          postCodeLookup.innerHTML = '郵便番号データ読み込み完了（' + Object.keys(postalDB).length + '件）';
+          postCodeLookup.innerHTML = '郵便番号データ読み込み完了（' + entries.length + '件）';
           setTimeout(function() {
             postCodeLookup.className = 'lookup-result';
             postCodeLookup.textContent = '';
@@ -429,39 +422,6 @@
           postCodeLookup.className = 'lookup-result ng';
           postCodeLookup.innerHTML = '郵便番号データの読み込みに失敗しました: ' + err.message;
         });
-    }
-
-    // ===== Simple CSV line parser (handles quoted fields with commas) =====
-    function parseCSVLine(line) {
-      var result = [];
-      var current = '';
-      var inQuotes = false;
-      for (var i = 0; i < line.length; i++) {
-        var ch = line[i];
-        if (inQuotes) {
-          if (ch === '"') {
-            if (i + 1 < line.length && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else {
-              inQuotes = false;
-            }
-          } else {
-            current += ch;
-          }
-        } else {
-          if (ch === '"') {
-            inQuotes = true;
-          } else if (ch === ',') {
-            result.push(current);
-            current = '';
-          } else {
-            current += ch;
-          }
-        }
-      }
-      result.push(current);
-      return result;
     }
 
     // ===== DOM Elements =====
