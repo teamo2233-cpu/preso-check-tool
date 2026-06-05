@@ -387,31 +387,81 @@
   </footer>
 
   <script>
-    // ===== Embedded Postal Data (from utf_add_2605.csv + utf_ken_all.csv) =====
-    // Format: [postalCode7, prefecture, city]
-    const POSTAL_DATA = [
-      // --- utf_add_2605.csv ---
-      ["9480013","新潟県","十日町市"],
-      ["4440819","愛知県","岡崎市"],
-      ["4440850","愛知県","岡崎市"],
-      ["4440818","愛知県","岡崎市"],
-      ["6048846","京都府","京都市中京区"],
-      ["6048843","京都府","京都市中京区"],
-      ["6048844","京都府","京都市中京区"]
-    ];
-
     // ===== Global State =====
     let postalDB = {};  // { "0600001": { pref: "北海道", city: "札幌市中央区" } }
     let currentLookup = null;
+    let dbReady = false;
 
-    // ===== Build postalDB from embedded data =====
+    // ===== Load CSV and build postalDB =====
     function buildPostalDB() {
-      for (const row of POSTAL_DATA) {
-        const code = row[0];
-        if (!postalDB[code]) {
-          postalDB[code] = { pref: row[1], city: row[2] };
+      postCodeLookup.className = 'lookup-result info';
+      postCodeLookup.innerHTML = '郵便番号データを読み込み中...';
+
+      fetch('utf_ken_all.csv')
+        .then(function(res) {
+          if (!res.ok) throw new Error('CSV読み込み失敗: ' + res.status);
+          return res.text();
+        })
+        .then(function(text) {
+          var lines = text.split(/\r?\n/);
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            // Parse CSV: fields may be quoted
+            var fields = parseCSVLine(line);
+            if (fields.length < 9) continue;
+            var code = fields[2].replace(/"/g, '').trim();
+            var pref = fields[6].replace(/"/g, '').trim();
+            var city = fields[7].replace(/"/g, '').trim();
+            if (!postalDB[code]) {
+              postalDB[code] = { pref: pref, city: city };
+            }
+          }
+          dbReady = true;
+          postCodeLookup.className = 'lookup-result ok';
+          postCodeLookup.innerHTML = '郵便番号データ読み込み完了（' + Object.keys(postalDB).length + '件）';
+          setTimeout(function() {
+            postCodeLookup.className = 'lookup-result';
+            postCodeLookup.textContent = '';
+          }, 3000);
+        })
+        .catch(function(err) {
+          postCodeLookup.className = 'lookup-result ng';
+          postCodeLookup.innerHTML = '郵便番号データの読み込みに失敗しました: ' + err.message;
+        });
+    }
+
+    // ===== Simple CSV line parser (handles quoted fields with commas) =====
+    function parseCSVLine(line) {
+      var result = [];
+      var current = '';
+      var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (i + 1 < line.length && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            current += ch;
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ',') {
+            result.push(current);
+            current = '';
+          } else {
+            current += ch;
+          }
         }
       }
+      result.push(current);
+      return result;
     }
 
     // ===== DOM Elements =====
@@ -553,6 +603,12 @@
       if (!/^\d{3}-\d{4}$/.test(val)) {
         showError('postCodeError', '形式：000-0000（ハイフン付き7桁）で入力してください');
         setValidity(postCodeInput, false);
+        return false;
+      }
+
+      if (!dbReady) {
+        postCodeLookup.className = 'lookup-result info';
+        postCodeLookup.innerHTML = '郵便番号データを読み込み中です。少々お待ちください...';
         return false;
       }
 
