@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PreSOチェックツール</title>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ===== Header (Motorola-style) ===== */
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 3px solid #c8102e;
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    .header-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 2px;
+    }
+
+    .header h1 span {
+      color: #c8102e;
+    }
+
+    .header p {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #8a8fa3;
+    }
+
+    /* ===== Main Container ===== */
+    .container {
+      max-width: 720px;
+      margin: 32px auto;
+      padding: 0 20px;
+    }
+
+    /* ===== Form Card ===== */
+    .form-card {
+      background: #141422;
+      border: 1px solid #2a2a3e;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    /* ===== Form Group ===== */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #b0b4c8;
+      margin-bottom: 6px;
+    }
+
+    .form-group label .required {
+      color: #c8102e;
+      margin-left: 4px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 15px;
+      background: #1c1c30;
+      border: 1px solid #3a3a52;
+      border-radius: 6px;
+      color: #e0e0e0;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: #5b8def;
+      box-shadow: 0 0 0 3px rgba(91,141,239,0.2);
+    }
+
+    .form-group input.invalid,
+    .form-group textarea.invalid {
+      border-color: #c8102e;
+      box-shadow: 0 0 0 3px rgba(200,16,46,0.15);
+    }
+
+    .form-group input.valid {
+      border-color: #2ecc71;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* ===== Hint / Error Text ===== */
+    .hint {
+      font-size: 12px;
+      color: #6a6e82;
+      margin-top: 4px;
+    }
+
+    .error-text {
+      font-size: 12px;
+      color: #c8102e;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .error-text.show {
+      display: block;
+    }
+
+    /* ===== Character Counter ===== */
+    .char-counter {
+      font-size: 12px;
+      color: #6a6e82;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .char-counter.warn {
+      color: #e67e22;
+    }
+
+    .char-counter.over {
+      color: #c8102e;
+    }
+
+    /* ===== Postal Lookup Result ===== */
+    .lookup-result {
+      margin-top: 8px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .lookup-result.ok {
+      display: block;
+      background: rgba(46,204,113,0.12);
+      border: 1px solid #2ecc71;
+      color: #2ecc71;
+    }
+
+    .lookup-result.ng {
+      display: block;
+      background: rgba(200,16,46,0.12);
+      border: 1px solid #c8102e;
+      color: #e74c3c;
+    }
+
+    .lookup-result.info {
+      display: block;
+      background: rgba(91,141,239,0.12);
+      border: 1px solid #5b8def;
+      color: #5b8def;
+    }
+
+    .lookup-result .detail {
+      font-weight: 400;
+      font-size: 12px;
+      margin-top: 4px;
+      opacity: 0.85;
+    }
+
+    /* ===== Auto-fill Suggestion ===== */
+    .address-suggestion {
+      margin-top: 6px;
+      padding: 8px 12px;
+      background: #1c1c30;
+      border: 1px dashed #5b8def;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #5b8def;
+      cursor: pointer;
+      display: none;
+      transition: background 0.2s;
+    }
+
+    .address-suggestion:hover {
+      background: #252545;
+    }
+
+    /* ===== Name Combined Row ===== */
+    .name-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .name-row .form-group {
+      flex: 1;
+    }
+
+    .combined-name-counter {
+      font-size: 12px;
+      color: #6a6e82;
+      text-align: right;
+      margin-bottom: 16px;
+    }
+
+    .combined-name-counter.warn {
+      color: #e67e22;
+    }
+
+    .combined-name-counter.over {
+      color: #c8102e;
+    }
+
+    /* ===== Submit Button ===== */
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      background: linear-gradient(135deg, #c8102e 0%, #a50d24 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 1px;
+      margin-top: 8px;
+    }
+
+    .btn-submit:hover {
+      opacity: 0.9;
+    }
+
+    .btn-submit:active {
+      transform: scale(0.98);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ===== Reset Button ===== */
+    .btn-reset {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #8a8fa3;
+      background: transparent;
+      border: 1px solid #3a3a52;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.2s;
+    }
+
+    .btn-reset:hover {
+      background: #1c1c30;
+    }
+
+    /* ===== Footer ===== */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: #4a4e62;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 600px) {
+      .name-row {
+        flex-direction: column;
+        gap: 0;
+      }
+      .header h1 {
+        font-size: 22px;
+      }
+      .form-card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <h1>PreSO<span>チェックツール</span></h1>
+      <p>顧客情報入力チェック - 郵便番号と住所の整合性確認</p>
+    </div>
+  </header>
+
+  <!-- Main Form -->
+  <main class="container">
+    <div class="form-card">
+      <form id="presoForm" novalidate autocomplete="off">
+
+        <!-- First Name & Last Name -->
+        <div class="name-row">
+          <div class="form-group">
+            <label for="firstName">① First Name <span class="required">*</span></label>
+            <input type="text" id="firstName" placeholder="例：太郎" maxlength="32">
+            <div class="error-text" id="firstNameError"></div>
+          </div>
+          <div class="form-group">
+            <label for="lastName">② Last Name <span class="required">*</span></label>
+            <input type="text" id="lastName" placeholder="例：山田" maxlength="32">
+            <div class="error-text" id="lastNameError"></div>
+          </div>
+        </div>
+        <div class="combined-name-counter" id="nameCounter">氏名合計：0 / 32文字</div>
+
+        <!-- Phone -->
+        <div class="form-group">
+          <label for="phone">③ Phone <span class="required">*</span></label>
+          <input type="text" id="phone" placeholder="例：07012345678" maxlength="11">
+          <div class="hint">ハイフン無しで入力してください（例：07012345678）</div>
+          <div class="error-text" id="phoneError"></div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label for="email">④ Email</label>
+          <input type="email" id="email" placeholder="例：taro@example.com">
+          <div class="error-text" id="emailError"></div>
+        </div>
+
+        <!-- Post Code -->
+        <div class="form-group">
+          <label for="postCode">⑤ Post Code <span class="required">*</span></label>
+          <input type="text" id="postCode" placeholder="例：948-0013" maxlength="8">
+          <div class="hint">ハイフン付きで入力してください（例：000-0001）</div>
+          <div class="error-text" id="postCodeError"></div>
+          <div class="lookup-result" id="postCodeLookup"></div>
+        </div>
+
+        <!-- Address -->
+        <div class="form-group">
+          <label for="address">⑥ Address <span class="required">*</span></label>
+          <input type="text" id="address" placeholder="例：新潟県十日町市川原町" maxlength="48">
+          <div class="hint">都道府県から入力してください（48文字以内）</div>
+          <div class="char-counter" id="addressCounter">0 / 48文字</div>
+          <div class="error-text" id="addressError"></div>
+          <div class="lookup-result" id="addressLookup"></div>
+          <div class="address-suggestion" id="addressSuggestion" title="クリックして自動入力"></div>
+        </div>
+
+        <!-- Problem Description -->
+        <div class="form-group">
+          <label for="description">⑦ Problem Description</label>
+          <textarea id="description" placeholder="問題の詳細を入力してください" maxlength="240"></textarea>
+          <div class="char-counter" id="descCounter">0 / 240文字</div>
+          <div class="error-text" id="descError"></div>
+        </div>
+
+        <!-- Buttons -->
+        <button type="submit" class="btn-submit" id="btnSubmit">確認する</button>
+        <button type="button" class="btn-reset" id="btnReset">リセット</button>
+      </form>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    PreSOチェックツール &copy; 2026
+  </footer>
+
+  <script>
+    // ===== Embedded Postal Data (from utf_add_2605.csv + utf_ken_all.csv) =====
+    // Format: [postalCode7, prefecture, city]
+    const POSTAL_DATA = [
+      // --- utf_add_2605.csv ---
+      ["9480013","新潟県","十日町市"],
+      ["4440819","愛知県","岡崎市"],
+      ["4440850","愛知県","岡崎市"],
+      ["4440818","愛知県","岡崎市"],
+      ["6048846","京都府","京都市中京区"],
+      ["6048843","京都府","京都市中京区"],
+      ["6048844","京都府","京都市中京区"]
+    ];
+
+    // ===== Global State =====
+    let postalDB = {};  // { "0600001": { pref: "北海道", city: "札幌市中央区" } }
+    let currentLookup = null;
+
+    // ===== Build postalDB from embedded data =====
+    function buildPostalDB() {
+      for (const row of POSTAL_DATA) {
+        const code = row[0];
+        if (!postalDB[code]) {
+          postalDB[code] = { pref: row[1], city: row[2] };
+        }
+      }
+    }
+
+    // ===== DOM Elements =====
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput  = document.getElementById('lastName');
+    const phoneInput     = document.getElementById('phone');
+    const emailInput     = document.getElementById('email');
+    const postCodeInput  = document.getElementById('postCode');
+    const addressInput   = document.getElementById('address');
+    const descInput      = document.getElementById('description');
+    const nameCounter    = document.getElementById('nameCounter');
+    const addressCounter = document.getElementById('addressCounter');
+    const descCounter    = document.getElementById('descCounter');
+    const postCodeLookup = document.getElementById('postCodeLookup');
+    const addressLookup  = document.getElementById('addressLookup');
+    const addressSuggestion = document.getElementById('addressSuggestion');
+    const form           = document.getElementById('presoForm');
+
+    // ===== Validation Helpers =====
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function clearError(id) {
+      const el = document.getElementById(id);
+      el.textContent = '';
+      el.classList.remove('show');
+    }
+
+    function setValidity(input, valid) {
+      input.classList.remove('valid', 'invalid');
+      if (valid === true) input.classList.add('valid');
+      else if (valid === false) input.classList.add('invalid');
+    }
+
+    // ===== Name Validation =====
+    function validateNames() {
+      const first = firstNameInput.value;
+      const last  = lastNameInput.value;
+      const total = first.length + last.length;
+
+      nameCounter.textContent = '氏名合計：' + total + ' / 32文字';
+      nameCounter.className = 'combined-name-counter' +
+        (total > 32 ? ' over' : total > 28 ? ' warn' : '');
+
+      clearError('firstNameError');
+      clearError('lastNameError');
+
+      if (total > 32) {
+        showError('firstNameError', '氏名の合計は32文字以内で入力してください（現在' + total + '文字）');
+        setValidity(firstNameInput, false);
+        setValidity(lastNameInput, false);
+        return false;
+      }
+
+      if (!first.trim()) {
+        showError('firstNameError', 'First Nameは必須です');
+        setValidity(firstNameInput, false);
+        return false;
+      }
+      if (!last.trim()) {
+        showError('lastNameError', 'Last Nameは必須です');
+        setValidity(lastNameInput, false);
+        return false;
+      }
+
+      setValidity(firstNameInput, true);
+      setValidity(lastNameInput, true);
+      return true;
+    }
+
+    // ===== Phone Validation =====
+    function validatePhone() {
+      clearError('phoneError');
+      const val = phoneInput.value;
+
+      if (!val.trim()) {
+        showError('phoneError', '電話番号は必須です');
+        setValidity(phoneInput, false);
+        return false;
+      }
+
+      if (/[^0-9]/.test(val)) {
+        showError('phoneError', '数字のみ入力してください（ハイフン無し）');
+        setValidity(phoneInput, false);
+        return false;
+      }
+
+      if (val.length < 10 || val.length > 11) {
+        showError('phoneError', '10〜11桁の電話番号を入力してください');
+        setValidity(phoneInput, false);
+        return false;
+      }
+
+      setValidity(phoneInput, true);
+      return true;
+    }
+
+    // ===== Email Validation =====
+    function validateEmail() {
+      clearError('emailError');
+      const val = emailInput.value;
+
+      if (!val.trim()) {
+        setValidity(emailInput, null);
+        return true;
+      }
+
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRe.test(val)) {
+        showError('emailError', '正しいメールアドレス形式で入力してください');
+        setValidity(emailInput, false);
+        return false;
+      }
+
+      setValidity(emailInput, true);
+      return true;
+    }
+
+    // ===== Post Code Validation =====
+    function validatePostCode() {
+      clearError('postCodeError');
+      postCodeLookup.className = 'lookup-result';
+      postCodeLookup.textContent = '';
+      addressSuggestion.style.display = 'none';
+      currentLookup = null;
+
+      const val = postCodeInput.value;
+
+      if (!val.trim()) {
+        showError('postCodeError', '郵便番号は必須です');
+        setValidity(postCodeInput, false);
+        return false;
+      }
+
+      // Format check: NNN-NNNN
+      if (!/^\d{3}-\d{4}$/.test(val)) {
+        showError('postCodeError', '形式：000-0000（ハイフン付き7桁）で入力してください');
+        setValidity(postCodeInput, false);
+        return false;
+      }
+
+      // Lookup
+      const code7 = val.replace('-', '');
+      const record = postalDB[code7];
+
+      if (!record) {
+        postCodeLookup.className = 'lookup-result ng';
+        postCodeLookup.innerHTML = '該当する郵便番号が見つかりません';
+        setValidity(postCodeInput, false);
+        return false;
+      }
+
+      currentLookup = record;
+      postCodeLookup.className = 'lookup-result info';
+      postCodeLookup.innerHTML = '郵便番号登録済：' + record.pref + record.city +
+        '<div class="detail">住所欄に「' + record.pref + record.city + '」が含まれているか確認してください</div>';
+      setValidity(postCodeInput, true);
+
+      // Re-validate address if already filled
+      if (addressInput.value.trim()) {
+        validateAddress();
+      }
+
+      return true;
+    }
+
+    // ===== Address Validation =====
+    function validateAddress() {
+      clearError('addressError');
+      addressLookup.className = 'lookup-result';
+      addressLookup.textContent = '';
+
+      const val = addressInput.value;
+      const len = val.length;
+
+      addressCounter.textContent = len + ' / 48文字';
+      addressCounter.className = 'char-counter' +
+        (len > 48 ? ' over' : len > 40 ? ' warn' : '');
+
+      if (!val.trim()) {
+        showError('addressError', '住所は必須です');
+        setValidity(addressInput, false);
+        return false;
+      }
+
+      if (len > 48) {
+        showError('addressError', '住所は48文字以内で入力してください（現在' + len + '文字）');
+        setValidity(addressInput, false);
+        return false;
+      }
+
+      // Postal code consistency check
+      if (currentLookup) {
+        const expectedPref = currentLookup.pref;
+        const expectedCity = currentLookup.city;
+        const expectedFull = expectedPref + expectedCity;
+
+        if (val.includes(expectedPref) && val.includes(expectedCity)) {
+          addressLookup.className = 'lookup-result ok';
+          addressLookup.innerHTML = '&#10003; 問題無し — 郵便番号と住所（' + expectedPref + expectedCity + '）が一致しています';
+          setValidity(addressInput, true);
+        } else {
+          addressLookup.className = 'lookup-result ng';
+          let msg = '&#10007; 不備あり — ';
+          if (!val.includes(expectedPref)) {
+            msg += '都道府県（' + expectedPref + '）が含まれていません ';
+          }
+          if (!val.includes(expectedCity)) {
+            msg += '市区町村（' + expectedCity + '）が含まれていません';
+          }
+          addressLookup.innerHTML = msg;
+
+          // Show suggestion
+          addressSuggestion.textContent = '候補：' + expectedFull + ' をクリックで自動入力';
+          addressSuggestion.style.display = 'block';
+          addressSuggestion.dataset.suggestion = expectedFull;
+
+          setValidity(addressInput, false);
+          return false;
+        }
+      } else {
+        setValidity(addressInput, true);
+      }
+
+      addressSuggestion.style.display = 'none';
+      return true;
+    }
+
+    // ===== Description Validation =====
+    function validateDescription() {
+      clearError('descError');
+      const val = descInput.value;
+      const len = val.length;
+
+      descCounter.textContent = len + ' / 240文字';
+      descCounter.className = 'char-counter' +
+        (len > 240 ? ' over' : len > 200 ? ' warn' : '');
+
+      if (len > 240) {
+        showError('descError', '240文字以内で入力してください（現在' + len + '文字）');
+        setValidity(descInput, false);
+        return false;
+      }
+
+      setValidity(descInput, null);
+      return true;
+    }
+
+    // ===== Auto-format Post Code =====
+    postCodeInput.addEventListener('input', function() {
+      let val = this.value.replace(/[^0-9\-]/g, '');
+      if (val.length >= 4 && val.indexOf('-') === -1) {
+        val = val.substring(0, 3) + '-' + val.substring(3);
+      }
+      this.value = val;
+    });
+
+    // ===== Phone: strip non-digits =====
+    phoneInput.addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '');
+    });
+
+    // ===== Event Listeners =====
+    firstNameInput.addEventListener('input', validateNames);
+    lastNameInput.addEventListener('input', validateNames);
+    phoneInput.addEventListener('blur', validatePhone);
+    emailInput.addEventListener('blur', validateEmail);
+    postCodeInput.addEventListener('blur', validatePostCode);
+    addressInput.addEventListener('input', function() {
+      validateAddress();
+    });
+    addressInput.addEventListener('blur', validateAddress);
+    descInput.addEventListener('input', validateDescription);
+
+    // ===== Address Suggestion Click =====
+    addressSuggestion.addEventListener('click', function() {
+      const suggestion = this.dataset.suggestion;
+      if (suggestion) {
+        const currentVal = addressInput.value;
+        if (currentLookup) {
+          const city = currentLookup.city;
+          let newVal = suggestion;
+          const cityIndex = currentVal.indexOf(city);
+          if (cityIndex !== -1) {
+            const afterCity = currentVal.substring(cityIndex + city.length);
+            newVal = suggestion + afterCity;
+          } else {
+            newVal = suggestion + currentVal;
+          }
+          if (newVal.length > 48) newVal = newVal.substring(0, 48);
+          addressInput.value = newVal;
+        }
+        validateAddress();
+        this.style.display = 'none';
+      }
+    });
+
+    // ===== Form Submit =====
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const v1 = validateNames();
+      const v2 = validatePhone();
+      const v3 = validateEmail();
+      const v4 = validatePostCode();
+      const v5 = validateAddress();
+      const v6 = validateDescription();
+
+      if (v1 && v2 && v3 && v4 && v5 && v6) {
+        alert('すべての項目が問題ありません。登録可能です。');
+      } else {
+        const firstInvalid = document.querySelector('.invalid');
+        if (firstInvalid) {
+          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          firstInvalid.focus();
+        }
+      }
+    });
+
+    // ===== Reset =====
+    document.getElementById('btnReset').addEventListener('click', function() {
+      form.reset();
+      nameCounter.textContent = '氏名合計：0 / 32文字';
+      nameCounter.className = 'combined-name-counter';
+      addressCounter.textContent = '0 / 48文字';
+      addressCounter.className = 'char-counter';
+      descCounter.textContent = '0 / 240文字';
+      descCounter.className = 'char-counter';
+
+      document.querySelectorAll('.error-text').forEach(function(el) {
+        el.textContent = '';
+        el.classList.remove('show');
+      });
+      document.querySelectorAll('input, textarea').forEach(function(el) {
+        el.classList.remove('valid', 'invalid');
+      });
+      postCodeLookup.className = 'lookup-result';
+      postCodeLookup.textContent = '';
+      addressLookup.className = 'lookup-result';
+      addressLookup.textContent = '';
+      addressSuggestion.style.display = 'none';
+      currentLookup = null;
+    });
+
+    // ===== Init =====
+    buildPostalDB();
+  </script>
+</body>
+</html>
