@@ -278,6 +278,65 @@
       background: #1c1c30;
     }
 
+    /* ===== Export Button ===== */
+    .btn-export {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      background: linear-gradient(135deg, #2a7d4f 0%, #1a5c38 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 1px;
+    }
+
+    .btn-export:hover {
+      opacity: 0.9;
+    }
+
+    .btn-export:active {
+      transform: scale(0.98);
+    }
+
+    .btn-export:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .export-status {
+      margin-top: 8px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      display: none;
+    }
+
+    .export-status.ok {
+      display: block;
+      background: rgba(46,204,113,0.12);
+      border: 1px solid #2ecc71;
+      color: #2ecc71;
+    }
+
+    .export-status.ng {
+      display: block;
+      background: rgba(200,16,46,0.12);
+      border: 1px solid #c8102e;
+      color: #e74c3c;
+    }
+
+    .export-status.info {
+      display: block;
+      background: rgba(91,141,239,0.12);
+      border: 1px solid #5b8def;
+      color: #5b8def;
+    }
+
     /* ===== Footer ===== */
     .footer {
       text-align: center;
@@ -377,6 +436,8 @@
         <!-- Buttons -->
         <button type="submit" class="btn-submit" id="btnSubmit">確認する</button>
         <button type="button" class="btn-reset" id="btnReset">リセット</button>
+        <button type="button" class="btn-export" id="btnExport">Export (MDS連携)</button>
+        <div class="export-status" id="exportStatus"></div>
       </form>
     </div>
   </main>
@@ -773,6 +834,87 @@
       addressLookup.textContent = '';
       addressSuggestion.style.display = 'none';
       currentLookup = null;
+    });
+
+    // ===== Export to Python Server =====
+    var EXPORT_SERVER = 'http://localhost:5000';
+
+    function showExportStatus(type, msg) {
+      var el = document.getElementById('exportStatus');
+      el.className = 'export-status ' + type;
+      el.textContent = msg;
+    }
+
+    function getFormData() {
+      return {
+        timestamp: new Date().toISOString(),
+        firstName: firstNameInput.value.trim(),
+        lastName: lastNameInput.value.trim(),
+        phone: phoneInput.value.trim(),
+        email: emailInput.value.trim(),
+        postCode: postCodeInput.value.trim(),
+        address: addressInput.value.trim(),
+        description: descInput.value.trim(),
+        postalLookup: currentLookup ? {
+          pref: currentLookup.pref,
+          city: currentLookup.city
+        } : null
+      };
+    }
+
+    document.getElementById('btnExport').addEventListener('click', function() {
+      // Validate all fields first
+      var v1 = validateNames();
+      var v2 = validatePhone();
+      var v3 = validateEmail();
+      var v4 = validatePostCode();
+      var v5 = validateAddress();
+      var v6 = validateDescription();
+
+      if (!v1 || !v2 || !v3 || !v4 || !v5 || !v6) {
+        showExportStatus('ng', '入力内容にエラーがあります。修正してからExportしてください。');
+        var firstInvalid = document.querySelector('.invalid');
+        if (firstInvalid) {
+          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          firstInvalid.focus();
+        }
+        return;
+      }
+
+      var data = getFormData();
+      var btn = document.getElementById('btnExport');
+      btn.disabled = true;
+      showExportStatus('info', 'MDSサーバーに送信中...');
+
+      fetch(EXPORT_SERVER + '/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('サーバーエラー: ' + res.status);
+        return res.json();
+      })
+      .then(function(result) {
+        showExportStatus('ok', result.message);
+        btn.disabled = false;
+      })
+      .catch(function(err) {
+        // Fallback: download as JSON file
+        showExportStatus('info', 'サーバーに接続できません。JSONファイルをダウンロードします...');
+        var jsonStr = JSON.stringify(data, null, 2);
+        var blob = new Blob([jsonStr], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'preso_export_' + data.postCode.replace('-', '') + '_' + Date.now() + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showExportStatus('ok', 'JSONファイルをダウンロードしました（サーバー未接続時のフォールバック）');
+        btn.disabled = false;
+      });
     });
 
     // ===== Init =====
